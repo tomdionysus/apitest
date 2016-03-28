@@ -47,8 +47,7 @@ walk(path.resolve(__dirname,'calls'), matcher, (filename) ->
     calls[sourceFile.Name] = sourceFile
     resolves[sourceFile.Name] = {} 
     isResolvedBy[sourceFile.Name] = {}
-    S.push(sourceFile) if sourceFile.Dependencies == null or sourceFile.Dependencies.length == 0 
-      
+    S.push(sourceFile) if sourceFile.Dependencies == null or sourceFile.Dependencies.length == 0      
 )
 
 # Resolve Dependencies
@@ -60,7 +59,7 @@ for name, n of calls
     resolves[depName][n.Name] = true
     isResolvedBy[n.Name][depName] = true
 
-# Sort Dependencies
+# Sort Dependencies (Kahn)
 while true
   break if S.length == 0 
   n = S.pop()
@@ -72,39 +71,47 @@ while true
       S.push(calls[depName])
   delete isResolvedBy[n.Name]
 
-
 if Object.keys(isResolvedBy).length > 0
   console.log("Error: Circular dependenies")
   for k1, v of isResolvedBy
-    console.log("> "+k1+" is unresolved, needs")
-    console.log("> - "+k2)for k2, v2 of v
-  process.exit(1)  
+    console.log("> "+k1+" (#{path.relative(__dirname,callFiles[k1])}) is unresolved, needs")
+    console.log("> - "+k2+" (#{path.relative(__dirname,callFiles[k1])})") for k2, v2 of v
+  process.exit(2)  
+
+# Run all tests in order for each environment
+totalCount = 0
+totalFailed = 0
 
 walk(path.resolve(__dirname,'environments'),matcher,(envfilename) ->
-
   context = {}
 
   env = require(envfilename)
   console.log("Testing #{env.Name}")
 
-  fs.writeFile(path.resolve(__dirname,templatename), JSON.stringify(template, null, 2), (err) ->
-    console.log("Error: "+err) if err?
-  )
+  context = {}
+  count = 0
+  failed = 0
+  for n in L
+    count++
+    try
+      res = n.Do(context, env, helpers)
+      str = if res then "[ PASS  ]" else "[ FAIL  ]"
+    catch e
+      str = "[ ERROR ]"
+      res = false
+
+    logLeftRight("* #{n.Name}", str)
+    failed++ unless res
+
+  console.log("#{env.Name} - #{count} calls, #{failed} failures.")
+  totalCount += count
+  totalFailed += failed
 )
 
-context = {}
-count = 0
-failed = 0
-for n in L
-  count++
-  res = n.Do(context, helpers)
-  str = if res then "[ PASS ]" else "[ FAIL ]"
-  logLeftRight("* #{n.Name}", str)
-  failed++ unless res
-
-console.log("Tested #{count} calls, #{failed} failures.")
-process.exit(1) if failed>0 
+console.log("Tested Total #{totalCount} calls, #{totalFailed} failures.")
+process.exit(1) if totalFailed>0 
 
 console.log("Done.")
+process.exit(0)
 
 
