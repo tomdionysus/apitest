@@ -1,0 +1,19 @@
+{
+  "name": "apitest",
+  "version": "0.0.1",
+  "description": "API Test",
+  "engines": {
+    "node": "latest"
+  },
+  "main": "lib/server.coffee",
+  "scripts": {
+  },
+  "license":"BSD-4-Clause",
+  "repository": "git@github.com:tomdionysus/apitest",
+  "author": "Tom Cully",
+  "dependencies": {
+    "coffee-script" : "1.10.0",
+    "underscore": "1.8.3",
+    "deepmerge": "0.2.10"
+  }
+}
