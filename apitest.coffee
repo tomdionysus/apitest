@@ -11,7 +11,7 @@ walk = (dir, f_match, f_visit) ->
       _walk(filename) if fs.statSync(filename).isDirectory()
   _walk(dir, dir)
  
-console.log("APITest v0.0.1")
+console.log("apitest 0.1.0")
 
 matcher = (fn) -> fn.match /\.coffee/
 
@@ -24,7 +24,7 @@ helpers = {}
 # Load Helpers
 walk(path.resolve(__dirname,'helpers'),matcher,(helperfilename) ->
   helperlib = require(helperfilename)
-  helpers[k] = v for k,v in helperlib
+  helpers[k] = v for k,v of helperlib
 )
 
 # Load Calls
@@ -91,27 +91,36 @@ walk(path.resolve(__dirname,'environments'),matcher,(envfilename) ->
   context = {}
   count = 0
   failed = 0
-  for n in L
-    count++
-    try
-      res = n.Do(context, env, helpers)
-      str = if res then "[ PASS  ]" else "[ FAIL  ]"
-    catch e
-      str = "[ ERROR ]"
-      res = false
 
-    logLeftRight("* #{n.Name}", str)
-    failed++ unless res
+  nextHandler = (test, ok) ->
+    if test?
+      count++
+      if ok 
+        str = "[ PASS  ]"
+      else
+        str = "[ FAIL  ]"
+        failed++
+      logLeftRight("* #{test.Name}", str)
 
-  console.log("#{env.Name} - #{count} calls, #{failed} failures.")
-  totalCount += count
-  totalFailed += failed
+    if L.length == 0
+      console.log("#{env.Name} - #{count} calls, #{failed} failures.")
+      totalCount += count
+      totalFailed += failed
+
+      console.log("Tested Total #{totalCount} calls, #{totalFailed} failures.")
+      process.exit(1) if totalFailed>0 
+
+      console.log("Done.")
+      process.exit(0)
+
+    next = L.shift()
+    process.nextTick(->
+      try 
+        next.Do(helpers, env, context, nextHandler) 
+      catch e
+        logLeftRight("* #{next.Name}", "[ ERROR ]")
+        throw e
+    )
+
+  nextHandler(null, false)
 )
-
-console.log("Tested Total #{totalCount} calls, #{totalFailed} failures.")
-process.exit(1) if totalFailed>0 
-
-console.log("Done.")
-process.exit(0)
-
-
